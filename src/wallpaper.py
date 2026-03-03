@@ -244,7 +244,8 @@ class LiveWallpaper(QWidget):
     def _start_timer(self) -> None:
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_time)
-        self.timer.start(1000)
+        interval = 1000
+        self.timer.start(interval)
         self._update_time()
 
     # --------------------------

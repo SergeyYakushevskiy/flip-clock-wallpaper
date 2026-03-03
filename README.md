@@ -1,23 +1,23 @@
 # Live Wallpaper Clock
 
-Живые обои для Windows с цифровыми часами по центру экрана.
+Живые обои для Windows с цифровыми часами.
 
 ## Возможности
 
-- Отображение текущего времени в реальном времени
-- Центрирование по экрану
+- Отображение текущего времени
+- Смена дизайна живых обоев
 - Пользовательская конфигурация через `config.json`
-- Минимальное потребление ресурсов
 
 ## Скриншот
 
 ![Screenshot](screenshots/screen1.jpg)
 
-## 🛠 Технологии
+## Технологии
 
 - Python 3.x
 - PyQt6
-- stypes
+- ctypes
+- PyInstaller (для создания исполняемого файла)
 - Inno Setup (для сборки установщика)
 
 ## Установка
@@ -33,5 +33,10 @@ cd live-wallpaper-clock
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python src/wallpaper.py
+```
+
+Произведите установку шрифта Digital-7.tff из бабки assets, после чего можете запустить проект
+
+```bash
+python src/app.py
 ```
