@@ -1,14 +1,14 @@
 [Setup]
-AppName=Digital Live Wallpaper
+AppName=FlipClock Live Wallpaper
 AppVersion=1.0
-DefaultDirName={autopf}\DigitalWallpaper
+DefaultDirName={autopf}\FlipClockWallpaper
 DefaultGroupName=Digital Live Wallpaper
-UninstallDisplayIcon={app}\wallpaper.exe
+UninstallDisplayIcon={app}\app.exe
 Compression=lzma2
 SolidCompression=yes
 OutputDir=setup_output
 OutputBaseFilename=LiveWallpaper_Installer
-SetupIconFile=app_icon.ico
+SetupIconFile=assets\app_icon.ico
 
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline dialog
@@ -17,18 +17,21 @@ PrivilegesRequiredOverridesAllowed=commandline dialog
 Name: "{userappdata}\DigitalWallpaper"; Permissions: users-full
 
 [Files]
-Source: "dist\wallpaper.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+; Основной exe после сборки PyInstaller
+Source: "dist\app.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Иконка приложения
+Source: "assets\app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+; Конфиг
 Source: "config.json"; DestDir: "{app}"; Flags: ignoreversion
-
-Source: "digital-7.ttf"; DestDir: "{autofonts}"; FontInstall: "Digital-7"; Flags: onlyifdestfileexists uninsneveruninstall
+; Шрифт
+Source: "assets\digital-7.ttf"; DestDir: "{autofonts}"; FontInstall: "Digital-7"; Flags: onlyifdestfileexists uninsneveruninstall
 
 [Icons]
-Name: "{group}\Digital Live Wallpaper"; Filename: "{app}\wallpaper.exe"
+Name: "{group}\Digital Live Wallpaper"; Filename: "{app}\app.exe"
 ; Автозагрузка для текущего пользователя
-Name: "{userstartup}\Digital Live Wallpaper"; Filename: "{app}\wallpaper.exe"; WorkingDir: "{userappdata}\DigitalWallpaper"
-; Ярлык для настроек (откроет папку, которую создаст Python)
+Name: "{userstartup}\Digital Live Wallpaper"; Filename: "{app}\app.exe"; WorkingDir: "{userappdata}\DigitalWallpaper"
+; Ярлык для папки настроек
 Name: "{group}\Открыть папку настроек"; Filename: "explorer.exe"; Parameters: "{userappdata}\DigitalWallpaper"
 
 [Run]
-Filename: "{app}\wallpaper.exe"; Description: "Запустить обои сейчас"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\app.exe"; Description: "Запустить обои сейчас"; Flags: nowait postinstall skipifsilent

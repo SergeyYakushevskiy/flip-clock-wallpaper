@@ -1,12 +1,12 @@
 {
     "window": {
-        "bg_color": "#2F2F2F",
-        "fps": 1
+        "bg_color": "#000000",
+	"fps" : 1
     },
     "clock": {
-        "font_name": "Digital-7",
-        "font_size": 150,
-        "font_color": "#707070",
+	"font_name": "HelveticaNeue LT CYR 57",
+        "font_size": 200,
+        "font_color": "#ffffff",
         "show_seconds": false
     }
 }
