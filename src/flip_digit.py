@@ -9,8 +9,6 @@ class FlipDigit(QWidget):
     def __init__(self, font_name="Arial", font_size=80, font_color="#DCDCDC", font_style="", parent=None):
         super().__init__(parent)
 
-        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
-
         self.current_val = "0"
         self.next_val = "0"
         self._flip_progress = 1.0
@@ -76,7 +74,7 @@ class FlipDigit(QWidget):
 
     def _load_custom_font(self, font_name):
         base_dir = ConfigLoader.get_base_dir()
-        font_files = list(base_dir.glob(f"assets/{font_name}*.ttf"))
+        font_files = list(base_dir.glob(f"assets/fonts/{font_name}*.ttf"))
         if font_files:
             font_id = QFontDatabase.addApplicationFont(str(font_files[0]))
             if font_id == -1:
@@ -131,8 +129,16 @@ class FlipDigit(QWidget):
         painter.drawPixmap(0, 0, self.next_pixmap, 0, 0, self.w, self.half_h)
         painter.drawPixmap(0, self.half_h, self.curr_pixmap, 0, self.half_h, self.w, self.half_h)
 
-        shadow_alpha = int(abs(cos_val) * 100)
-        painter.fillRect(0, self.half_h if progress < 0.5 else 0, self.w, self.half_h, QColor(0, 0, 0, shadow_alpha))
+        if 0.0 < progress < 1.0:
+            shadow_alpha = int((1 - abs(cos_val)) * 150)
+            radius = self.w / 12
+
+            rect_y = self.half_h if progress < 0.5 else 0
+            rect_height = self.half_h
+
+            painter.setBrush(QColor(0, 0, 0, shadow_alpha))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(0, rect_y, self.w, rect_height, radius, radius)
 
         painter.save()
         painter.translate(0, self.half_h)
@@ -146,5 +152,7 @@ class FlipDigit(QWidget):
 
         painter.restore()
 
+        # Разделительная линия
         painter.fillRect(0, self.half_h - 1, self.w, 3, QColor(0, 0, 0, 200))
         painter.fillRect(0, self.half_h + 2, self.w, 1, QColor(255, 255, 255, 30))
+

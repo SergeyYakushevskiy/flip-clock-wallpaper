@@ -1,9 +1,8 @@
-import ctypes
 from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QGuiApplication, QIcon
+from PyQt6.QtGui import QGuiApplication, QIcon, QColor
 from PyQt6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -14,9 +13,9 @@ from PyQt6.QtWidgets import (
     QStyle,
 )
 
-from src.config_loader import ConfigLoader
 from src.flip_digit import FlipDigit
 
+# Константы Win32 API
 GWL_EXSTYLE = -20
 WS_EX_TOOLWINDOW = 0x00000080
 WS_EX_NOACTIVATE = 0x08000000
@@ -26,28 +25,38 @@ SWP_NOMOVE = 0x0002
 SWP_NOSIZE = 0x0001
 SWP_NOACTIVATE = 0x0010
 SWP_SHOWWINDOW = 0x0040
-
 HWND_BOTTOM = 1
-
+WM_SPAWN_WORKER = 0x052C
+LWA_ALPHA = 0x00000002
+SW_SHOW = 5
 
 class LiveWallpaper(QWidget):
     def __init__(self, config):
         super().__init__()
-
         self.config = config
+        self.digits = []
         self.timer = None
+
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
 
         self.main_layout = QHBoxLayout()
         self.main_layout.setSpacing(20)
         self.main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setLayout(self.main_layout)
 
-        self.init_ui()
-        self.init_tray()
+        self.init_ui_content()
+
+        self.show()
+        QApplication.processEvents()
+
         self.setup_desktop_mode()
 
-    def init_ui(self):
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+        self.init_tray()
+        self.start_clock()
+
+    def init_ui_content(self):
+        """Создает или пересоздает виджеты часов на основе конфига"""
+        self.clear_layout(self.main_layout)
 
         clock_cfg = self.config.get("clock", {})
         f_name = clock_cfg.get("font_name", "Arial")
@@ -55,30 +64,25 @@ class LiveWallpaper(QWidget):
         f_color = clock_cfg.get("font_color", "#DCDCDC")
         f_style = clock_cfg.get("font_style", "")
 
-        self.digits = [FlipDigit(f_name, f_size, f_color, f_style) for _ in range(6)]
 
+        num_digits = 6 if clock_cfg.get("show_seconds", True) else 4
+        self.digits = [FlipDigit(f_name, f_size, f_color, f_style) for _ in range(num_digits)]
+
+        # Сборка интерфейса
         self.main_layout.addWidget(self.digits[0])
         self.main_layout.addWidget(self.digits[1])
         self.add_separator()
-
         self.main_layout.addWidget(self.digits[2])
         self.main_layout.addWidget(self.digits[3])
 
-        if clock_cfg.get("show_seconds", True):
+        if num_digits == 6:
             self.add_separator()
             self.main_layout.addWidget(self.digits[4])
             self.main_layout.addWidget(self.digits[5])
 
         self.apply_styles()
         self.update_geometry()
-
-        if not self.timer:
-            self.timer = QTimer(self)
-            self.timer.timeout.connect(self.update_time)
-            self.timer.start(1000)
-
         self.update_time()
-        self.show()
 
     def add_separator(self):
         sep = QLabel(":")
@@ -105,6 +109,12 @@ class LiveWallpaper(QWidget):
             if i < len(self.digits):
                 self.digits[i].set_value(digit_char)
 
+    def start_clock(self):
+        if not self.timer:
+            self.timer = QTimer(self)
+            self.timer.timeout.connect(self.update_time)
+            self.timer.start(1000)
+
     def update_geometry(self):
         screens = QGuiApplication.screens()
         rect = screens[0].geometry()
@@ -113,47 +123,80 @@ class LiveWallpaper(QWidget):
         self.setGeometry(rect)
 
     def setup_desktop_mode(self):
-        hwnd = int(self.winId())
+        """
+        Прод-уровень: встраивание окна в структуру WorkerW.
+        Исправлено: добавлен Layered Alpha и форсированная перерисовка.
+        """
+        import ctypes
+        from ctypes import wintypes
         user32 = ctypes.windll.user32
 
-        progman = user32.FindWindowW(b"Progman", None)
-        result = ctypes.c_ulong()
-        user32.SendMessageTimeoutW(progman, 0x052C, 0, 0, 0, 1000, ctypes.byref(result))
+        hwnd = int(self.winId())
 
-        WorkerW = ctypes.c_int(0)
+        # Подготовка слоев Windows
+        progman = user32.FindWindowW("Progman", None)
+        user32.SendMessageTimeoutW(
+            progman, 0x052C, 0, 0, 0x0000, 1000, ctypes.byref(ctypes.c_ulong())
+        )
 
-        EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+        # Поиск целевого WorkerW (слой под иконками)
+        target_workerw = [0]
 
         def enum_windows(hwnd_enum, lParam):
-            nonlocal WorkerW
-            shell_def_view = user32.FindWindowExW(hwnd_enum, 0, b"SHELLDLL_DefView", None)
-            if shell_def_view:
-                WorkerW = user32.FindWindowExW(0, hwnd_enum, b"WorkerW", None)
+            shell_view = user32.FindWindowExW(hwnd_enum, 0, "SHELLDLL_DefView", None)
+            if shell_view:
+                # Находим WorkerW, который идет сразу за SHELLDLL_DefView
+                found = user32.FindWindowExW(0, hwnd_enum, "WorkerW", None)
+                if found:
+                    target_workerw[0] = found
             return True
 
-        user32.EnumWindows(EnumWindowsProc(enum_windows), 0)
-        if WorkerW != 0:
-            user32.SetParent(hwnd, WorkerW)
+        EnumProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        user32.EnumWindows(EnumProc(enum_windows), 0)
 
+        worker_w = target_workerw[0]
+        if not worker_w:
+            worker_w = user32.FindWindowW("WorkerW", None)
+
+        if not worker_w:
+            return
+
+
+        # Установка родителя
+        user32.SetParent(hwnd, worker_w)
+
+        # Настройка расширенных стилей
+        # WS_EX_TOOLWINDOW: убрать из панели задач
+        # WS_EX_NOACTIVATE: не перехватывать фокус (клики сквозь иконки)
+        # WS_EX_LAYERED: необходимо для корректного композитинга в WorkerW
         ex_style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-        ex_style |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED
-        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style)
+        new_style = ex_style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED
+        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
+
+        user32.SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA)
+
+        # Финальное позиционирование и отображение
+        # SWP_SHOWWINDOW, чтобы окно точно было активным внутри родителя
+        w, h = self.width(), self.height()
+        if w <= 0 or h <= 0:
+            rect = QGuiApplication.primaryScreen().geometry()
+            w, h = rect.width(), rect.height()
 
         user32.SetWindowPos(
-            hwnd,
-            HWND_BOTTOM,
-            0,
-            0,
-            0,
-            0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            hwnd, 0,
+            0, 0, w, h,
+            SWP_SHOWWINDOW | SWP_NOACTIVATE
         )
+
+        # Принудительно показываем окно через API
+        user32.ShowWindow(hwnd, SW_SHOW)
+        user32.UpdateWindow(hwnd)
+
 
     def init_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
         base_path = Path(__file__).parent.parent
-        icon_path = base_path / "assets" / "app_icon.ico"
-
+        icon_path = base_path / "assets" / "icons" / "tray_icon.ico"
         if icon_path.exists():
             self.tray_icon.setIcon(QIcon(str(icon_path)))
         else:
@@ -169,34 +212,29 @@ class LiveWallpaper(QWidget):
         self.tray_icon.show()
 
     def open_config_file(self):
+        from src.config_loader import ConfigLoader
         config_path = ConfigLoader.get_config_dir() / "config.json"
         if config_path.exists():
             import os
             os.startfile(config_path)
 
     def reload_config(self):
+        """Метод мягкого обновления без перезапуска всего Win32 процесса"""
+        from src.config_loader import ConfigLoader
         self.config = ConfigLoader.load()
-        self.clear_layout(self.main_layout)
-
-        clock_cfg = self.config.get("clock", {})
-        f_name = clock_cfg.get("font_name", "Arial")
-        f_size = clock_cfg.get("font_size", 150)
-        f_color = clock_cfg.get("font_color", "#DCDCDC")
-        f_style = clock_cfg.get("font_style", "")
-
-        self.digits = [FlipDigit(f_name, f_size, f_color, f_style) for _ in range(6)]
-        self.init_ui()
+        self.init_ui_content()
+        self.show()
 
     def clear_layout(self, layout):
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
 
     def quit_app(self):
         if self.timer:
             self.timer.stop()
-        self.hide()
         self.tray_icon.hide()
         QApplication.instance().quit()
