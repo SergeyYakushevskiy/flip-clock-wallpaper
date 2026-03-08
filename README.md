@@ -1,16 +1,11 @@
 # Live Wallpaper Clock
 
-Живые обои для Windows с цифровыми часами.
+Живые обои для Windows с цифровыми часами в стиле FlipClock
 
-## Возможности
+Обои отлично подойдут для пользователей, желающих убрать визуальный шум с рабочего стола и прибавить ему функциональности.
+Удобные настройки помогут подстроить живые обои под себя.
 
-- Отображение текущего времени
-- Смена дизайна живых обоев
-- Пользовательская конфигурация через `config.json`
-
-## Скриншот
-
-![Screenshot](screenshots/screen1.jpg)
+![Screenshot](docs/screenshots/live%20wallpaper.png)
 
 ## Технологии
 
@@ -22,21 +17,11 @@
 
 ## Установка
 
-### Вариант 1 — готовый установщик
-Скачать `.exe` из раздела Releases и установить.
+В разделе releases находится файл установки живых обоев в формате .exe. После установки обои автоматически заполнят рабочий стол. 
+После установки живые обои автоматически будут запускаться при старте операционной системы
 
-### Вариант 2 — запуск из исходников
+## Настройки
 
-```bash
-git clone https://github.com/yourname/live-wallpaper-clock.git
-cd live-wallpaper-clock
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-Произведите установку шрифта Digital-7.tff из бабки assets, после чего можете запустить проект
-
-```bash
-python src/app.py
-```
+Настройки можно найти в трее.
+![Screenshot](docs/screenshots/wallpaper%20at%20the%20tray.png)
+![Screenshot](docs/screenshots/settings%20window.png)

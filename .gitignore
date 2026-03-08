@@ -4,3 +4,8 @@ venv/
 
 # PyCharm
 .idea/
+
+# PyInstaller
+*.spec
+build/
+dist/
